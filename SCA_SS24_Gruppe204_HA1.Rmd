@@ -129,12 +129,40 @@ sales_by_region
 8) Berechnen Sie für jedes Jahr den Marktanteil Ihres Produkts (an der tatsächlich verkauften Menge). Wie hat sich
 der Marktanteil in den letzten Jahren entwickelt? Bewertungsrelevant: Output, Kommentar.
 ```{r}
+transactions_2019_to_2023 <- subset(transactions, Year >= 2019 & Year <= 2023)
+
+## Berechnung des Marktanteils des Produktes "Gruppe204" für jedes Jahr
+market_share_per_year <- transactions_2019_to_2023 %>%
+  group_by(Year) %>%
+  summarise(
+    total_sales = sum(Sales),
+    product_sales = sum(Sales[Product == "Gruppe204"])
+  ) %>%
+  mutate(market_share = product_sales / total_sales)
+print(market_share_per_year)
+
+
+## Analyse: Der Marktanteil des Produkts hat sich über die fünf Jahre nur geringfügig verändert. 
+#Es gab einen leichten Anstieg von 2019 bis 2020, danach blieb der Marktanteil relativ stabil bis 2021. 
+#In den Jahren 2022 und 2023 ist ein kleiner Rückgang zu verzeichnen. 
+#Insgesamt zeigt der Marktanteil eine leichte Abwärtsbewegung, bleibt aber über die Jahre relativ stabil bei etwa 12%.
 
 ```
 
 9) Berechnen Sie den durchschnittlichen Absatz Ihres Produkts je Kalendermonat. Nennen Sie daraufhin den Monat
 mit dem höchsten durchschnittlichen Absatz. Bewertungsrelevant: Output, Kommentar.
 ```{r}
+## Berechnung des durchschnittlichen Absatzes je Kalendarmonates
+average_monthly_sales <- transactions_2019_to_2023 %>%
+  group_by(Month) %>%
+  summarise(average_sales = mean(Sales[Product == "Gruppe204"]))
+print(average_monthly_sales)
+
+
+## Nennung des Monats mit dem höchsten durchschnittlichen Absatzes
+max_sales_month <- average_monthly_sales %>%
+  filter(average_sales == max(average_sales))
+print(max_sales_month)
 
 ```
 
@@ -149,6 +177,18 @@ wertungsrelevant: Output. Berechnen Sie ihren Umsatz und ihre Gesamtkosten im Be
 Vereinfachung werden nur die Kosten für die Produktion und Transport zu den Großlägern betrachtet). Wie viel
 Profit konnten Sie erwirtschaften? Bewertungsrelevant: Output, Kommentar.
 ```{r}
+price_per_bottle <- 3.90
+cost_per_bottle <- 0.60
+
+# Berechnung des Umsatzes, der Gesamtkosten und des Gesamtprofites
+total_revenue <- sum(transactions_2019_to_2023$Sales[transactions_2019_to_2023$Product == "Gruppe204"]) * price_per_bottle
+total_cost <- sum(transactions_2019_to_2023$Sales[transactions_2019_to_2023$Product == "Gruppe204"]) * cost_per_bottle
+total_profit <- total_revenue - total_cost
+
+# Ausgabe der Ergenisse
+cat("Gesamtumsatz:", total_revenue, "\n")
+cat("Gesamtkosten:", total_cost, "\n")
+cat("Gesamtprofit:", total_profit, "\n")
 
 ```
 
@@ -156,6 +196,32 @@ Profit konnten Sie erwirtschaften? Bewertungsrelevant: Output, Kommentar.
 mit dem grössten und kleinsten Profit passend farbig hervor. Bewertungsrelevant: Output.
 Hinweis: Es könnte hilfreich sein, zunächst ein Dataframe mit den passenden Daten zu erstellen.
 ```{r}
+# Berechnung des monatlichen Profites
+transactions_2023 <- subset(transactions_2019_to_2023, Year == 2023)
+monthly_profit_2023 <- transactions_2023 %>%
+  group_by(Month) %>%
+  summarise(
+    total_sales = sum(Sales[Product == "Gruppe204"]),
+    revenue = total_sales * price_per_bottle,
+    cost = total_sales * cost_per_bottle,
+    profit = revenue - cost
+  )
+
+
+# Bestimmung der Monate mit dem größten und kleinsten Profit
+max_profit_month <- monthly_profit_2023 %>% filter(profit == max(profit))
+min_profit_month <- monthly_profit_2023 %>% filter(profit == min(profit))
+
+
+# Darstellung des monatlichen Profites
+ggplot(monthly_profit_2023, aes(x = Month, y = profit)) +
+  geom_line() +
+  geom_point(data = max_profit_month, aes(x = Month, y = profit), color = "green", size = 3) +
+  geom_point(data = min_profit_month, aes(x = Month, y = profit), color = "red", size = 3) +
+  ggtitle("Monthly Profit for 2023") +
+  xlab("Month") +
+  ylab("Profit") +
+  theme_minimal()
 
 ```
 
@@ -164,6 +230,24 @@ bildet sind. Die Grafik soll einen Vergleich der Regionen ermöglichen. Für jed
 (1) Wie viel wurde für pünktliche Transportdienstleistungen ausgegeben und (2) wie viel wurde für verspätete
 Transportdienstleistungen ausgegeben. Interpretieren Sie die Grafik. Bewertungsrelevant: Output, Kommentar.
 ```{r}
+# Berechnung der Kosten für Transportdienstleistungen
+transport_costs <- services_2019_to_2023 %>%
+  filter(service == "Shipping") %>%
+  group_by(region, DaysExecuted <= 2) %>%
+  summarise(total_cost = sum(cost))
+
+# Umbenennung der Gruppe
+transport_costs <- transport_costs %>%
+  mutate(on_time = ifelse(`DaysExecuted <= 2`, "On Time", "Late"))
+
+# Darstellung der Kosten nach Region 
+ggplot(transport_costs, aes(x = region, y = total_cost, fill = on_time)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Kosten nach Region") +
+  xlab("Region") +
+  ylab("Gesamtkosten") +
+  scale_fill_manual(values = c("On Time" = "blue", "Late" = "red")) +
+  theme_minimal()
 
 ```
 
@@ -181,6 +265,24 @@ enstleistungen als zusätzliche Variable in dieser Tabelle. Berechnen Sie darauf
 der Shipping‐Dienstleister im Jahr 2023. Geben Sie Ihre Ergebnisse in einer Tabelle aus, in der die Kennzahl‐Werte
 absteigend sortiert sind. Bewertungsrelevant: Kommentar, Code, Output.
 ```{r}
+# Eine geeignete Kennzahl dafür ist der Prozentsatzes der punktlichen Lieferung von jedem Diensleister. 
+# Damit wird festgestellt, welcher Dienstleister am häufigsten die Produkte punktlich liefert
+
+
+# Berechnung des Prozensatzes der punktlichen Lieferung von jedem Dienstleister
+shipping_evaluation <- services_2019_to_2023 %>%
+  filter(service == "Shipping") %>%
+  group_by(vendor) %>%
+  summarise(
+    total_deliveries = n(),
+    on_time_deliveries = sum(DaysExecuted <= 2),
+    on_time_percentage = on_time_deliveries / total_deliveries * 100
+  ) %>%
+  arrange(desc(on_time_percentage))
+print(shipping_evaluation)
+
+
+
 
 ```
 
@@ -188,10 +290,28 @@ absteigend sortiert sind. Bewertungsrelevant: Kommentar, Code, Output.
 die Qualiteat der Warehousing‐Dienstleister ausmacht. Begründen Sie die Wahl der Kennzahl kurz. Erstellen
 Sie ein Subset der Services Tabelle mit allen Warehousing‐Dienstleistungen. Berechnen Sie ihre ausgewählte
 Kennzahl für alle Dienstleistungen als zusätzliche Variable in dieser Tabelle. Berechnen Sie anschließend die
-5durchschnittliche Kennzahl für die Warehousing‐Dienstleister für die Dienstleistungen an Ihrem Produkt über die
+durchschnittliche Kennzahl für die Warehousing‐Dienstleister für die Dienstleistungen an Ihrem Produkt über die
 gesamte Laufzeit (5 Jahre). Geben Sie Ihre Ergebnisse in einer Tabelle aus, in der die Kennzahl‐Werte absteigend
 sortiert sind. Bewertungsrelevant: Kommentar, Code, Output.
 ```{r}
+## Eine geeignet Kennzahl dazu ist der Prozentsatz der Anfragen, bei denen sich QExecuted und QScheduled übereinstimmen.
+# Wenn diese zwei Attribute bei demselben Wert liegen, dann wird die richtige Menge der Produkte abgefertigt. 
+# Daher kann mit dieser Kennzahl die Qualität der Dienstleister bewertet werden.
+
+
+# Filterung der Warehousing-DL und Berechnung des Genauigkeitsprozensatzes
+warehousing_evaluation <- services_2019_to_2023 %>%
+  filter(service == "Warehousing") %>%
+  group_by(vendor) %>%
+  summarise(
+    total_requests = n(),
+    accurate_fulfillments = sum(QExecuted == QScheduled),
+    accuracy_percentage = accurate_fulfillments / total_requests * 100
+  ) %>%
+  arrange(desc(accuracy_percentage))
+
+# Ausgabe der Ergebnisse
+print(warehousing_evaluation)
 
 ```
 
@@ -200,6 +320,36 @@ sortiert sind. Bewertungsrelevant: Kommentar, Code, Output.
 Dienstleister möglich sein. Wie bewerten Sie die Qualität der Warehousing‐DL insgesamt? Bewertungsrelevant:
 Output, Kommentar.
 ```{r}
+# Filterung der Warehousing-DL im Jahr 2023
+warehousing_2023 <- services_2019_to_2023 %>%
+  filter(service == "Warehousing" & Year == 2023)
+print(warehousing_2023)
 
+# Berechnung des Genauigkeitsprozensatzes für jeden Dienstleister im Jahr 2023 
+warehousing_accuracy_2023 <- warehousing_2023 %>%
+  group_by(vendor) %>%
+  summarise(
+    total_requests = n(),
+    accurate_fulfillments = sum(QExecuted == QScheduled),
+    accuracy_percentage = accurate_fulfillments / total_requests * 100
+  )
+print(warehousing_accuracy_2023)
+# Darstellung des Genauigkeitsprozensatzes 
+ggplot(warehousing_accuracy_2023, aes(x = reorder(vendor, accuracy_percentage), y = accuracy_percentage)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ggtitle("Genauigkeitsprozensatzes der Dienstleister") +
+  xlab("Vendor") +
+  ylab("Genauigkeit") +
+  theme_minimal()
+
+
+
+## Von der Analyse wird festgestellt, dass die Genauigkeit sehr niedrig ist bzw. die Qualität der DL ganz schlecht ist.
+# Über den gesamten Zeitraum (2019-2023) ist die Genauigkeit bei der Hälfte der DLn nur zwischen 1,8% und 3,8%.
+# Bei den anderen DLn ist die Genauigkeit sogar bei 0, also diese DL haben gar keine Anfrage genau bearbeitet.
+# Im Jahr 2023 ist die Qualität der DL noch schlimmer.
+# Bei DWL und Flying Mercury gibt es nur eine Anfrage, die genau bearbeitet wurde wie geplant.
+# Bei anderen Dienstleistern gibt es gar keine solche Anfrage.
 ```
 
